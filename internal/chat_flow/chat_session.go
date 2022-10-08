@@ -1,8 +1,8 @@
 package chat_flow
 
 import (
-	"github.com/gustavolopess/hoteleiro/models"
-	"github.com/gustavolopess/hoteleiro/storage"
+	"github.com/gustavolopess/hoteleiro/internal/models"
+	"github.com/gustavolopess/hoteleiro/internal/storage"
 )
 
 type ChatSession interface {

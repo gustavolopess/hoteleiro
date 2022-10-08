@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gustavolopess/hoteleiro/models"
-	"github.com/gustavolopess/hoteleiro/storage"
+	"github.com/gustavolopess/hoteleiro/internal/models"
+	"github.com/gustavolopess/hoteleiro/internal/storage"
 )
 
 type Flow[T models.Models] interface {
@@ -35,6 +35,10 @@ const (
 	stepGetValueCondo
 	stepGetDateCondo
 
+	stepBeginApartment
+	stepGetNameApartment
+	stepGetAddressApartment
+
 	stepEnd
 )
 
@@ -59,6 +63,8 @@ func NewFlow[T models.Models](store storage.Store) Flow[T] {
 		f.step = stepBeginCleaning
 	case models.Condo:
 		f.step = stepBeginCondo
+	case models.Apartment:
+		f.step = stepBeginApartment
 	}
 
 	return f
@@ -189,6 +195,21 @@ func (f *flow[T]) Next(answer string) string {
 		_ = f.store.AddCondo(f.value.(*models.Condo))
 		f.step = stepEnd
 		return fmt.Sprintf("Taxa de condomínio registrada: %v", f.value.(*models.Condo).ToString())
+
+	// Apartment flow
+	case stepBeginApartment:
+		f.step = stepGetNameApartment
+		return "Qual o nome do imóvel?"
+	case stepGetNameApartment:
+		f.step = stepGetAddressApartment
+		f.value = &models.Apartment{
+			Name: answer,
+		}
+		return "Qual o endereço do imóvel?"
+	case stepGetAddressApartment:
+		f.value.(*models.Apartment).Address = answer
+		_ = f.store.AddApartment(f.value.(*models.Apartment))
+		f.step = stepEnd
 	}
 
 	return ""

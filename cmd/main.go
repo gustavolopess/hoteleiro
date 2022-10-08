@@ -5,9 +5,10 @@ import (
 	"os"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
-	"github.com/gustavolopess/hoteleiro/chat_flow"
-	"github.com/gustavolopess/hoteleiro/models"
-	"github.com/gustavolopess/hoteleiro/storage"
+	"github.com/gustavolopess/hoteleiro/internal/chat_flow"
+	"github.com/gustavolopess/hoteleiro/internal/config"
+	"github.com/gustavolopess/hoteleiro/internal/models"
+	"github.com/gustavolopess/hoteleiro/internal/storage"
 )
 
 type MenuOption string
@@ -18,13 +19,15 @@ const (
 	addCleaning  MenuOption = "Adicionar faxina"
 	addBill      MenuOption = "Adicionar conta de luz"
 	addCondo     MenuOption = "Adicionar condomínio"
+	addApartment MenuOption = "Adicionar imóvel"
 )
 
 func isMessageAMenuOption(msg string) bool {
 	return (msg == string(addRent) ||
 		msg == string(addBill) ||
 		msg == string(addCleaning) ||
-		msg == string(addCondo))
+		msg == string(addCondo) ||
+		msg == string(addApartment))
 }
 
 var numericKeyboard = tgbotapi.NewReplyKeyboard(
@@ -36,6 +39,9 @@ var numericKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButton(string(addBill)),
 		tgbotapi.NewKeyboardButton(string(addCondo)),
 	),
+	tgbotapi.NewKeyboardButtonRow(
+		tgbotapi.NewKeyboardButton(string(addApartment)),
+	),
 )
 
 var chatSessions = make(map[int64]chat_flow.ChatSession)
@@ -46,7 +52,9 @@ func main() {
 		log.Panic(err)
 	}
 
-	store := storage.NewStore()
+	cfg := config.LoadConfig()
+
+	store := storage.NewStore(cfg)
 
 	bot.Debug = true
 
@@ -95,6 +103,8 @@ func initChatSession(chatId int64, msgText string, store storage.Store) string {
 		chatSession = chat_flow.NewChatSession[models.Cleaning](chatId, store)
 	case addCondo:
 		chatSession = chat_flow.NewChatSession[models.Condo](chatId, store)
+	case addApartment:
+		chatSession = chat_flow.NewChatSession[models.Apartment](chatId, store)
 	}
 
 	if chatSession != nil {

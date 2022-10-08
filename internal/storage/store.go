@@ -4,12 +4,15 @@ import (
 	"errors"
 	"time"
 
-	"github.com/gustavolopess/hoteleiro/models"
+	"github.com/gustavolopess/hoteleiro/internal/config"
+	"github.com/gustavolopess/hoteleiro/internal/models"
+	"github.com/gustavolopess/hoteleiro/internal/storage/dynamo"
 )
 
 type Store interface {
 	AddCleaning(c *models.Cleaning) error
 	AddCondo(c *models.Condo) error
+	AddApartment(a *models.Apartment) error
 	AddBill(e *models.EnergyBill) error
 	AddRent(r *models.Rent) error
 }
@@ -20,29 +23,38 @@ type rentRegistry struct {
 }
 
 type store struct {
-	cleanings map[string]*models.Cleaning
-	bills     map[string]*models.EnergyBill
-	condos    map[string]*models.Condo
-	rents     map[time.Time]*rentRegistry
+	dynamoClient *dynamo.DynamoClient
+	cleanings    map[string]*models.Cleaning
+	bills        map[string]*models.EnergyBill
+	condos       map[string]*models.Condo
+	rents        map[time.Time]*rentRegistry
+	apartments   map[string]*models.Apartment
 }
 
-func NewStore() Store {
+func NewStore(cfg *config.Config) Store {
+	dynamoClient := dynamo.NewDynamoClient(cfg.DynamoDbUri, cfg.AwsRegion)
 	return &store{
-		cleanings: make(map[string]*models.Cleaning),
-		bills:     make(map[string]*models.EnergyBill),
-		condos:    make(map[string]*models.Condo),
-		rents:     make(map[time.Time]*rentRegistry),
+		dynamoClient: dynamoClient,
+		cleanings:    make(map[string]*models.Cleaning),
+		bills:        make(map[string]*models.EnergyBill),
+		condos:       make(map[string]*models.Condo),
+		rents:        make(map[time.Time]*rentRegistry),
 	}
 }
 
 func (s *store) AddCleaning(c *models.Cleaning) error {
-	s.cleanings[c.Date.Format("02/01/2006")] = c
-	return nil
+	// TODO: check if there's some cleaning at same day for same apartment before add
+	return s.dynamoClient.AddModel(c)
 }
 
 func (s *store) AddCondo(c *models.Condo) error {
-	s.condos[c.Date.Format("02/01/2006")] = c
-	return nil
+	// TODO: check if there's some condo at same month for same apartment before add
+	return s.dynamoClient.AddModel(c)
+}
+
+func (s *store) AddApartment(a *models.Apartment) error {
+	// TODO: check if there's some apartment with same name before add
+	return s.dynamoClient.AddModel(a)
 }
 
 func (s *store) AddBill(e *models.EnergyBill) error {
@@ -51,6 +63,7 @@ func (s *store) AddBill(e *models.EnergyBill) error {
 }
 
 func (s *store) AddRent(r *models.Rent) error {
+	// TODO: get list of rents at window of 1month forward and backward to run the verification below
 	dateIterator := r.DateBegin
 	rentsCopy := s.rents
 

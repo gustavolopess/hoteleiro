@@ -8,6 +8,7 @@ import (
 type Condo struct {
 	Value float64
 	Date  time.Time
+	Apartment
 }
 
 func (c *Condo) ToString() string {

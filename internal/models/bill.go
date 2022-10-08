@@ -8,6 +8,7 @@ import (
 type EnergyBill struct {
 	Date  time.Time
 	Value float64
+	Apartment
 }
 
 func (e *EnergyBill) ToString() string {

@@ -10,6 +10,7 @@ type Rent struct {
 	DateEnd   time.Time
 	Value     float64
 	Renter    string
+	Apartment
 }
 
 func (r *Rent) ToString() string {

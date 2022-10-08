@@ -9,6 +9,7 @@ type Cleaning struct {
 	Date    time.Time
 	Value   float64
 	Cleaner string
+	Apartment
 }
 
 func (c *Cleaning) ToString() string {
