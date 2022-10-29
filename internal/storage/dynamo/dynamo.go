@@ -1,6 +1,7 @@
 package dynamo
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -46,6 +47,7 @@ var tablesDefinitions = []*dynamodb.CreateTableInput{
 }
 
 func NewDynamoClient(endpoint, region string) *DynamoClient {
+	fmt.Println(region, endpoint)
 	sess := session.Must(session.NewSessionWithOptions(session.Options{
 		Config: aws.Config{
 			Region:   aws.String(region),
@@ -62,7 +64,10 @@ func NewDynamoClient(endpoint, region string) *DynamoClient {
 func (d *DynamoClient) CreateTablesIfNotExists() {
 	for _, td := range tablesDefinitions {
 		_, err := d.CreateTable(td)
-		if err != nil {
+		switch err.(type) {
+		case *dynamodb.ResourceInUseException:
+			log.Printf("Table %v already exists, ignoring creation", td.TableName)
+		default:
 			log.Fatalf("Got error calling CreateTable: %s", err)
 		}
 	}

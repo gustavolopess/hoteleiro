@@ -25,7 +25,7 @@ func LoadConfig() *Config {
 
 	viper.SetConfigName("config." + appEnv)
 	viper.SetConfigType("yml")
-	viper.AddConfigPath("./config/")
+	viper.AddConfigPath("/home/gustavolopess/workspace/golang/hoteleiro/config")
 	err := viper.ReadInConfig()
 	if err != nil {
 		panic(fmt.Errorf("fatal error config file: %w", err))

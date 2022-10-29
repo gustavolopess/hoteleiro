@@ -43,9 +43,11 @@ const (
 )
 
 type flow[T models.Models] struct {
-	store storage.Store
-	step  Step
-	value any
+	store          storage.Store
+	step           Step
+	askedApartment bool
+	apartmentName  string
+	value          any
 }
 
 func NewFlow[T models.Models](store storage.Store) Flow[T] {
@@ -71,6 +73,15 @@ func NewFlow[T models.Models](store storage.Store) Flow[T] {
 }
 
 func (f *flow[T]) Next(answer string) string {
+	if !f.askedApartment {
+		f.askedApartment = true
+		return "De qual imóvel estamos falando?"
+	}
+
+	if f.apartmentName == "" {
+		f.apartmentName = answer
+	}
+
 	switch f.step {
 	case stepEnd:
 		return ""
@@ -85,7 +96,9 @@ func (f *flow[T]) Next(answer string) string {
 			return err.Error()
 		}
 		if f.value == nil {
-			f.value = &models.EnergyBill{}
+			f.value = &models.EnergyBill{
+				Apartment: models.Apartment{Name: f.apartmentName},
+			}
 		}
 		f.value.(*models.EnergyBill).Value = value
 		f.step = stepGetDateEnergyBill
@@ -105,6 +118,11 @@ func (f *flow[T]) Next(answer string) string {
 
 	// Rent flow
 	case stepBeginRent:
+		if f.value == nil {
+			f.value = &models.Rent{
+				Apartment: models.Apartment{Name: f.apartmentName},
+			}
+		}
 		f.step = stepGetValueRent
 		return "Qual o valor do aluguel?"
 	case stepGetValueRent:
@@ -112,11 +130,7 @@ func (f *flow[T]) Next(answer string) string {
 		if err != nil {
 			return err.Error()
 		}
-		if f.value == nil {
-			f.value = &models.Rent{
-				Value: value,
-			}
-		}
+		f.value.(*models.Rent).Value = value
 		f.step = stepGetDateBeginRent
 		return "Qual a data de início da locação? informe a data no formato dd/mm/aaaa"
 	case stepGetDateBeginRent:
@@ -146,6 +160,11 @@ func (f *flow[T]) Next(answer string) string {
 
 	// Cleaning flow
 	case stepBeginCleaning:
+		f.value = &models.Cleaning{
+			Apartment: models.Apartment{
+				Name: f.apartmentName,
+			},
+		}
 		f.step = stepGetValueCleaning
 		return "Qual o valor pago na faxina?"
 	case stepGetValueCleaning:
@@ -154,9 +173,7 @@ func (f *flow[T]) Next(answer string) string {
 			return err.Error()
 		}
 		f.step = stepGetDateCleaning
-		f.value = &models.Cleaning{
-			Value: value,
-		}
+		f.value.(*models.Cleaning).Value = value
 		return "Em qual data a faxina foi realizada? informe uma data no formato dd/mm/aaaa"
 	case stepGetDateCleaning:
 		t, err := parseDateFromFullDate(answer)

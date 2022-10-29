@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/gustavolopess/hoteleiro/internal/chat_flow"
@@ -47,7 +46,7 @@ var numericKeyboard = tgbotapi.NewReplyKeyboard(
 var chatSessions = make(map[int64]chat_flow.ChatSession)
 
 func main() {
-	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
+	bot, err := tgbotapi.NewBotAPI("5627586393:AAHHTc0W5Fjy-dC1CLejshG3ZbJK4va5--E")
 	if err != nil {
 		log.Panic(err)
 	}

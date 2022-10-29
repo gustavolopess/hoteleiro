@@ -1,1 +1,2 @@
-dynamodb_uri: 0.0.0.0:8000
+dynamodb_uri: http://0.0.0.0:8000
+aws_region: us-east-1

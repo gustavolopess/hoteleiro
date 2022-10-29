@@ -1,12 +1,13 @@
 package storage
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"github.com/gustavolopess/hoteleiro/internal/config"
 	"github.com/gustavolopess/hoteleiro/internal/models"
-	"github.com/gustavolopess/hoteleiro/internal/storage/dynamo"
+	"github.com/gustavolopess/hoteleiro/internal/storage/google_sheets"
 )
 
 type Store interface {
@@ -23,38 +24,38 @@ type rentRegistry struct {
 }
 
 type store struct {
-	dynamoClient *dynamo.DynamoClient
-	cleanings    map[string]*models.Cleaning
-	bills        map[string]*models.EnergyBill
-	condos       map[string]*models.Condo
-	rents        map[time.Time]*rentRegistry
-	apartments   map[string]*models.Apartment
+	client     Store
+	cleanings  map[string]*models.Cleaning
+	bills      map[string]*models.EnergyBill
+	condos     map[string]*models.Condo
+	rents      map[time.Time]*rentRegistry
+	apartments map[string]*models.Apartment
 }
 
 func NewStore(cfg *config.Config) Store {
-	dynamoClient := dynamo.NewDynamoClient(cfg.DynamoDbUri, cfg.AwsRegion)
+	sheetsClient := google_sheets.NewSheetsClient(context.Background(), "credentials.json", "1lfWxf_Wj5IjKjPlu6V2k519Y_RVJh1UU2pDL9VuFxCo")
 	return &store{
-		dynamoClient: dynamoClient,
-		cleanings:    make(map[string]*models.Cleaning),
-		bills:        make(map[string]*models.EnergyBill),
-		condos:       make(map[string]*models.Condo),
-		rents:        make(map[time.Time]*rentRegistry),
+		client:    sheetsClient,
+		cleanings: make(map[string]*models.Cleaning),
+		bills:     make(map[string]*models.EnergyBill),
+		condos:    make(map[string]*models.Condo),
+		rents:     make(map[time.Time]*rentRegistry),
 	}
 }
 
 func (s *store) AddCleaning(c *models.Cleaning) error {
 	// TODO: check if there's some cleaning at same day for same apartment before add
-	return s.dynamoClient.AddModel(c)
+	return s.client.AddCleaning(c)
 }
 
 func (s *store) AddCondo(c *models.Condo) error {
 	// TODO: check if there's some condo at same month for same apartment before add
-	return s.dynamoClient.AddModel(c)
+	return s.client.AddCondo(c)
 }
 
 func (s *store) AddApartment(a *models.Apartment) error {
 	// TODO: check if there's some apartment with same name before add
-	return s.dynamoClient.AddModel(a)
+	return s.client.AddApartment(a)
 }
 
 func (s *store) AddBill(e *models.EnergyBill) error {
