@@ -42,6 +42,21 @@ const (
 	stepGetNameApartment
 	stepGetAddressApartment
 
+	stepBeginMiscellaneousExpense
+	stepGetDescriptionMiscellaneousExpense
+	stepGetValueMiscellaneousExpense
+	stepGetDateMiscellaneousExpense
+
+	stepBeginAmortization
+	stepGetPayerAmortization
+	stepGetValueAmortization
+	stepGetDateAmortization
+
+	stepBeginFinancingInstallment
+	stepGetFinancialInstallmentDate
+	stepGetFinancialInstallmentValue
+	stepGetFinancialInstallmentPayer
+
 	stepEnd
 )
 
@@ -71,6 +86,12 @@ func NewFlow[T models.Models](store storage.Store) Flow[T] {
 		f.step = stepBeginCondo
 	case models.Apartment:
 		f.step = stepBeginApartment
+	case models.MiscellaneousExpense:
+		f.step = stepBeginMiscellaneousExpense
+	case models.Amortization:
+		f.step = stepBeginAmortization
+	case models.FinancingInstallment:
+		f.step = stepBeginFinancingInstallment
 	}
 
 	return f
@@ -277,6 +298,101 @@ func (f *flow[T]) next(answer string) (string, interface{}) {
 		f.value.(*models.Apartment).Address = answer
 		_ = f.store.AddApartment(f.value.(*models.Apartment))
 		f.step = stepEnd
+
+	// Miscellaneous expense flow
+	case stepBeginMiscellaneousExpense:
+		f.step = stepGetValueMiscellaneousExpense
+		return "Informe um identificador para essa despesa (exemplo: compra de sofá, etc)", nil
+	case stepGetDescriptionMiscellaneousExpense:
+		f.step = stepGetValueMiscellaneousExpense
+		f.value = &models.MiscellaneousExpense{
+			Description: answer,
+			Apartment:   models.Apartment{Name: f.apartmentName},
+		}
+		return "Qual o valor da despesa?", nil
+	case stepGetValueMiscellaneousExpense:
+		value, err := parsePriceFromStr(answer)
+		if err != nil {
+			return err.Error(), nil
+		}
+		f.step = stepGetDateMiscellaneousExpense
+		f.value.(*models.MiscellaneousExpense).Value = value
+	case stepGetDateMiscellaneousExpense:
+		t, err := parseDateFromMonthAndYear(answer)
+		if err != nil {
+			return err.Error(), nil
+		}
+		f.value.(*models.MiscellaneousExpense).Date = t
+		err = f.store.AddMiscellaneousExpense(f.value.(*models.MiscellaneousExpense))
+		if err != nil {
+			return fmt.Sprintf("Falha ao adicionar a despesa %v - %v", f.value.(*models.MiscellaneousExpense).ToString(), err.Error()), nil
+		}
+		f.step = stepEnd
+		return fmt.Sprintf("Despesa registrada: %v", f.value.(*models.MiscellaneousExpense).ToString()), nil
+
+	// Amortization flow
+	case stepBeginAmortization:
+		f.step = stepGetValueAmortization
+		return "Qual foi o valor amortizado?", nil
+	case stepGetValueAmortization:
+		v, err := parsePriceFromStr(answer)
+		if err != nil {
+			return err.Error(), nil
+		}
+		f.value = &models.Amortization{
+			Apartment: models.Apartment{Name: f.apartmentName},
+			Value:     v,
+		}
+		f.step = stepGetDateAmortization
+		return "Qual a data da amortizaçao?", nil
+	case stepGetDateAmortization:
+		t, err := parseDateFromFullDate(answer)
+		if err != nil {
+			return err.Error(), nil
+		}
+		f.value.(*models.Amortization).Date = t
+		f.step = stepGetPayerAmortization
+		return "Quem fez essa amortizaçao?", nil
+	case stepGetPayerAmortization:
+		f.value.(*models.Amortization).Payer = answer
+		err := f.store.AddAmortization(f.value.(*models.Amortization))
+		if err != nil {
+			return fmt.Sprintf("Falha ao adicionar amortizaçao %v - %v", f.value.(*models.Amortization).ToString(), err.Error()), nil
+		}
+		f.step = stepEnd
+		return fmt.Sprintf("Amortizaçao registrada: %v", f.value.(*models.Amortization).ToString()), nil
+
+	// Financing installment flow
+	case stepBeginFinancingInstallment:
+		f.step = stepGetFinancialInstallmentValue
+		return "Qual o valor pago na parcela?", nil
+	case stepGetFinancialInstallmentValue:
+		v, err := parsePriceFromStr(answer)
+		if err != nil {
+			return err.Error(), nil
+		}
+		f.value = &models.FinancingInstallment{
+			Value:     v,
+			Apartment: models.Apartment{Name: f.apartmentName},
+		}
+		f.step = stepGetFinancialInstallmentDate
+		return "Qual foi a data em que essa parcela foi paga? informe no formato dd/mm/aaaa", nil
+	case stepGetFinancialInstallmentDate:
+		t, err := parseDateFromFullDate(answer)
+		if err != nil {
+			return err.Error(), nil
+		}
+		f.value.(*models.FinancingInstallment).Date = t
+		f.step = stepGetFinancialInstallmentPayer
+		return "Quem pagou esta parcela?", nil
+	case stepGetFinancialInstallmentPayer:
+		f.value.(*models.FinancingInstallment).Payer = answer
+		err := f.store.AddFinancingInstallment(f.value.(*models.FinancingInstallment))
+		if err != nil {
+			return fmt.Sprintf("Falha ao registrar pagamento de parcela - %v", err.Error()), nil
+		}
+		f.step = stepEnd
+		return fmt.Sprintf("Pagamento de parcela registrado: %v", f.value.(*models.FinancingInstallment).ToString()), nil
 	}
 
 	return "", nil

@@ -25,6 +25,9 @@ const cleaningCell = "L3"
 const readCleaningCells = "L3:N"
 const billCell = "F3"
 const readBillCells = "F3:G"
+const miscellaneousExpenseCell = "Q3"
+const amortizationCell = "V3"
+const financingInstallmentCell = "AA3"
 
 const dateLayout = "02/01/2006"
 
@@ -139,6 +142,24 @@ func (s *SheetsClient) AddBill(e *models.EnergyBill) error {
 func (s *SheetsClient) AddRent(r *models.Rent) error {
 	return s.appendData(r.Apartment, rentCell, [][]interface{}{
 		{r.DateBegin.Format(dateLayout), r.DateEnd.Format(dateLayout), r.Value, r.Renter},
+	})
+}
+
+func (s *SheetsClient) AddMiscellaneousExpense(m *models.MiscellaneousExpense) error {
+	return s.appendData(m.Apartment, miscellaneousExpenseCell, [][]interface{}{
+		{m.Date.Format(dateLayout), m.Value, m.Description},
+	})
+}
+
+func (s *SheetsClient) AddAmortization(a *models.Amortization) error {
+	return s.appendData(a.Apartment, amortizationCell, [][]interface{}{
+		{a.Date.Format(dateLayout), a.Value, a.Payer},
+	})
+}
+
+func (s *SheetsClient) AddFinancingInstallment(f *models.FinancingInstallment) error {
+	return s.appendData(f.Apartment, financingInstallmentCell, [][]interface{}{
+		{f.Date.Format(dateLayout), f.Value, f.Payer},
 	})
 }
 

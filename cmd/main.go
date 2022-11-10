@@ -13,12 +13,15 @@ import (
 type MenuOption string
 
 const (
-	startCommand string     = "start"
-	addRent      MenuOption = "Adicionar aluguel"
-	addCleaning  MenuOption = "Adicionar faxina"
-	addBill      MenuOption = "Adicionar conta de luz"
-	addCondo     MenuOption = "Adicionar condomínio"
-	addApartment MenuOption = "Adicionar imóvel"
+	startCommand            string     = "start"
+	addRent                 MenuOption = "Adicionar aluguel"
+	addCleaning             MenuOption = "Adicionar faxina"
+	addBill                 MenuOption = "Adicionar conta de luz"
+	addCondo                MenuOption = "Adicionar conta de condomínio"
+	addApartment            MenuOption = "Adicionar imóvel"
+	addMiscellaneousExpense MenuOption = "Adicionar despesa diversa"
+	addAmortization         MenuOption = "Adicionar amortizaçao"
+	addFinancingInstallment MenuOption = "Adicionar pagamento de parcela do financiamento"
 )
 
 func isMessageAMenuOption(msg string) bool {
@@ -26,7 +29,10 @@ func isMessageAMenuOption(msg string) bool {
 		msg == string(addBill) ||
 		msg == string(addCleaning) ||
 		msg == string(addCondo) ||
-		msg == string(addApartment))
+		msg == string(addApartment) ||
+		msg == string(addAmortization) ||
+		msg == string(addMiscellaneousExpense) ||
+		msg == string(addFinancingInstallment))
 }
 
 var numericKeyboard = tgbotapi.NewReplyKeyboard(
@@ -37,6 +43,13 @@ var numericKeyboard = tgbotapi.NewReplyKeyboard(
 	tgbotapi.NewKeyboardButtonRow(
 		tgbotapi.NewKeyboardButton(string(addBill)),
 		tgbotapi.NewKeyboardButton(string(addCondo)),
+	),
+	tgbotapi.NewKeyboardButtonRow(
+		tgbotapi.NewKeyboardButton(string(addAmortization)),
+		tgbotapi.NewKeyboardButton(string(addMiscellaneousExpense)),
+	),
+	tgbotapi.NewKeyboardButtonRow(
+		tgbotapi.NewKeyboardButton(string(addFinancingInstallment)),
 	),
 	tgbotapi.NewKeyboardButtonRow(
 		tgbotapi.NewKeyboardButton(string(addApartment)),
@@ -108,6 +121,12 @@ func initChatSession(chatId int64, msgText string, store storage.Store) (string,
 		chatSession = chat_flow.NewChatSession[models.Condo](chatId, store)
 	case addApartment:
 		chatSession = chat_flow.NewChatSession[models.Apartment](chatId, store)
+	case addMiscellaneousExpense:
+		chatSession = chat_flow.NewChatSession[models.MiscellaneousExpense](chatId, store)
+	case addAmortization:
+		chatSession = chat_flow.NewChatSession[models.Amortization](chatId, store)
+	case addFinancingInstallment:
+		chatSession = chat_flow.NewChatSession[models.FinancingInstallment](chatId, store)
 	}
 
 	if chatSession != nil {

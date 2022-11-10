@@ -16,6 +16,9 @@ type Store interface {
 	AddApartment(a *models.Apartment) error
 	AddBill(e *models.EnergyBill) error
 	AddRent(r *models.Rent) error
+	AddMiscellaneousExpense(e *models.MiscellaneousExpense) error
+	AddAmortization(a *models.Amortization) error
+	AddFinancingInstallment(f *models.FinancingInstallment) error
 	GetAvailableApartments() ([]string, error)
 	GetExistingRents(apartment models.Apartment) ([]*models.Rent, error)
 	GetPayedCondos(apartment models.Apartment) ([]*models.Condo, error)
@@ -92,6 +95,18 @@ func (s *store) AddRent(r *models.Rent) error {
 	}
 
 	return s.client.AddRent(r)
+}
+
+func (s *store) AddMiscellaneousExpense(m *models.MiscellaneousExpense) error {
+	return s.client.AddMiscellaneousExpense(m)
+}
+
+func (s *store) AddAmortization(a *models.Amortization) error {
+	return s.client.AddAmortization(a)
+}
+
+func (s *store) AddFinancingInstallment(f *models.FinancingInstallment) error {
+	return s.client.AddFinancingInstallment(f)
 }
 
 func (s *store) GetAvailableApartments() ([]string, error) {
