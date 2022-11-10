@@ -7,13 +7,22 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gustavolopess/hoteleiro/internal/models"
+	"github.com/gustavolopess/hoteleiro/internal/storage/errors"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
 )
+
+const rentCell = "A3"
+const rentDatesCells = "A3:B"
+const condoCell = "I3"
+const cleaningCell = "L3"
+const billCell = "F3"
+const dateLayout = "02/01/2006"
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
@@ -98,14 +107,14 @@ func NewSheetsClient(ctx context.Context, credentialsFile, sheetsId string) *She
 
 // AddCleaning adds a new cleaning fee to the Cleaning table in the apartment sheet
 func (s *SheetsClient) AddCleaning(c *models.Cleaning) error {
-	return s.appendData(c.Apartment, "L3", [][]interface{}{
+	return s.appendData(c.Apartment, cleaningCell, [][]interface{}{
 		{c.Date, c.Value, c.Cleaner},
 	})
 }
 
 // AddCondo adds a new condo payment to the Condo table in the apartment Sheet
 func (s *SheetsClient) AddCondo(c *models.Condo) error {
-	return s.appendData(c.Apartment, "I3", [][]interface{}{
+	return s.appendData(c.Apartment, condoCell, [][]interface{}{
 		{c.Date, c.Value},
 	})
 }
@@ -117,16 +126,52 @@ func (s *SheetsClient) AddApartment(a *models.Apartment) error {
 
 // AddBill appends data to the Bill table in the apartment sheet
 func (s *SheetsClient) AddBill(e *models.EnergyBill) error {
-	return s.appendData(e.Apartment, "F3", [][]interface{}{
+	return s.appendData(e.Apartment, billCell, [][]interface{}{
 		{e.Date, e.Value},
 	})
 }
 
 // AddRent appends data to the rent table in the apartment sheet
 func (s *SheetsClient) AddRent(r *models.Rent) error {
-	return s.appendData(r.Apartment, "A3", [][]interface{}{
-		{r.DateBegin.Local().String(), r.DateEnd.Local().String(), r.Value, r.Renter},
-	})
+	existingRentDates, err := s.readData(r.Apartment, rentDatesCells)
+	if err != nil {
+		return err
+	}
+	if s.isRentDatesAvailable(r, existingRentDates) {
+		return s.appendData(r.Apartment, rentCell, [][]interface{}{
+			{r.DateBegin.Format(dateLayout), r.DateEnd.Format(dateLayout), r.Value, r.Renter},
+		})
+	}
+
+	return errors.ErrRentDatesUsed
+}
+
+func (s *SheetsClient) isRentDatesAvailable(r *models.Rent, existingRentDates [][]interface{}) bool {
+	for _, dates := range existingRentDates {
+		dateBegin, err := time.Parse(dateLayout, dates[0].(string))
+		if err != nil {
+			log.Println("failed to parse dateBegin", err.Error())
+			return false
+		}
+
+		dateEnd, err := time.Parse(dateLayout, dates[1].(string))
+		if err != nil {
+			log.Println("failed to parse dateEnd", err.Error())
+			return false
+		}
+
+		if r.DateBegin.Equal(dateBegin) || (r.DateBegin.After(dateBegin) && r.DateBegin.Before(dateEnd)) {
+			log.Println("begin date is at an used date range")
+			return false
+		}
+
+		if (r.DateEnd.After(dateBegin) && r.DateEnd.Before(dateEnd)) || r.DateEnd.Equal(dateEnd) {
+			log.Println("end date is at an used date range")
+			return false
+		}
+	}
+
+	return true
 }
 
 // GetAvailableApartments query the existing sheets and return its titles in an array
@@ -155,4 +200,13 @@ func (s *SheetsClient) appendData(apartment models.Apartment, appendRange string
 
 	log.Printf("values added to range %s", resp.Updates.UpdatedRange)
 	return nil
+}
+
+func (s *SheetsClient) readData(apartment models.Apartment, readRange string) ([][]interface{}, error) {
+	cells, err := s.Spreadsheets.Values.Get(s.sheetsId, readRange).ValueRenderOption("FORMATTED_VALUE").Do()
+	if err != nil {
+		return nil, err
+	}
+
+	return cells.Values, nil
 }

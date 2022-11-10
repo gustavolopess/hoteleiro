@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/gustavolopess/hoteleiro/internal/config"
@@ -65,40 +64,7 @@ func (s *store) AddBill(e *models.EnergyBill) error {
 }
 
 func (s *store) AddRent(r *models.Rent) error {
-	// TODO: get list of rents at window of 1month forward and backward to run the verification below
-	dateIterator := r.DateBegin
-	rentsCopy := s.rents
-
-	for dateIterator.Before(r.DateEnd) || dateIterator.Equal(r.DateEnd) {
-		if registry, ok := rentsCopy[dateIterator]; ok && registry.isLastDay && dateIterator.Equal(r.DateBegin) {
-			rentsCopy[dateIterator] = &rentRegistry{
-				isLastDay: false,
-				Rent:      r,
-			}
-		} else if !ok && dateIterator.Equal(r.DateBegin) {
-			rentsCopy[dateIterator] = &rentRegistry{
-				isLastDay: false,
-				Rent:      r,
-			}
-		} else if !ok && dateIterator.Equal(r.DateEnd) {
-			rentsCopy[dateIterator] = &rentRegistry{
-				isLastDay: true,
-				Rent:      nil,
-			}
-		} else if !ok {
-			rentsCopy[dateIterator] = &rentRegistry{
-				isLastDay: false,
-				Rent:      nil,
-			}
-		} else {
-			return errors.New("aluguel inválido ou sobrepondo um aluguel existente")
-		}
-
-		dateIterator = dateIterator.Add(time.Hour * 24)
-	}
-
-	s.rents = rentsCopy
-	return nil
+	return s.client.AddRent(r)
 }
 
 func (s *store) GetAvailableApartments() ([]string, error) {
