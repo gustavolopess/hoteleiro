@@ -7,10 +7,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gustavolopess/hoteleiro/internal/models"
-	"github.com/gustavolopess/hoteleiro/internal/storage/errors"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
@@ -18,10 +18,14 @@ import (
 )
 
 const rentCell = "A3"
-const rentDatesCells = "A3:B"
+const rentDatesCells = "A3:D"
 const condoCell = "I3"
+const readCondosCells = "I3:J"
 const cleaningCell = "L3"
+const readCleaningCells = "L3:N"
 const billCell = "F3"
+const readBillCells = "F3:G"
+
 const dateLayout = "02/01/2006"
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -108,14 +112,14 @@ func NewSheetsClient(ctx context.Context, credentialsFile, sheetsId string) *She
 // AddCleaning adds a new cleaning fee to the Cleaning table in the apartment sheet
 func (s *SheetsClient) AddCleaning(c *models.Cleaning) error {
 	return s.appendData(c.Apartment, cleaningCell, [][]interface{}{
-		{c.Date, c.Value, c.Cleaner},
+		{c.Date.Format(dateLayout), c.Value, c.Cleaner},
 	})
 }
 
 // AddCondo adds a new condo payment to the Condo table in the apartment Sheet
 func (s *SheetsClient) AddCondo(c *models.Condo) error {
 	return s.appendData(c.Apartment, condoCell, [][]interface{}{
-		{c.Date, c.Value},
+		{c.Date.Format(dateLayout), c.Value},
 	})
 }
 
@@ -127,51 +131,141 @@ func (s *SheetsClient) AddApartment(a *models.Apartment) error {
 // AddBill appends data to the Bill table in the apartment sheet
 func (s *SheetsClient) AddBill(e *models.EnergyBill) error {
 	return s.appendData(e.Apartment, billCell, [][]interface{}{
-		{e.Date, e.Value},
+		{e.Date.Format(dateLayout), e.Value},
 	})
 }
 
 // AddRent appends data to the rent table in the apartment sheet
 func (s *SheetsClient) AddRent(r *models.Rent) error {
-	existingRentDates, err := s.readData(r.Apartment, rentDatesCells)
+	return s.appendData(r.Apartment, rentCell, [][]interface{}{
+		{r.DateBegin.Format(dateLayout), r.DateEnd.Format(dateLayout), r.Value, r.Renter},
+	})
+}
+
+func (s *SheetsClient) GetExistingRents(apartment models.Apartment) ([]*models.Rent, error) {
+	existingRentsData, err := s.readData(apartment, rentDatesCells)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if s.isRentDatesAvailable(r, existingRentDates) {
-		return s.appendData(r.Apartment, rentCell, [][]interface{}{
-			{r.DateBegin.Format(dateLayout), r.DateEnd.Format(dateLayout), r.Value, r.Renter},
+
+	existingRents := make([]*models.Rent, 0)
+
+	for _, rent := range existingRentsData {
+		dateBegin, err := time.Parse(dateLayout, rent[0].(string))
+		if err != nil {
+			log.Println("failed to parse dateBegin", err.Error(), rent)
+			return nil, err
+		}
+
+		dateEnd, err := time.Parse(dateLayout, rent[1].(string))
+		if err != nil {
+			log.Println("failed to parse dateEnd", err.Error(), rent)
+			return nil, err
+		}
+
+		value, err := strconv.ParseFloat(rent[2].(string), 32)
+		if err != nil {
+			log.Println("failed to parse value of rent", rent)
+		}
+
+		existingRents = append(existingRents, &models.Rent{
+			DateBegin: dateBegin,
+			DateEnd:   dateEnd,
+			Value:     value,
+			Renter:    rent[3].(string),
+			Apartment: apartment,
 		})
 	}
 
-	return errors.ErrRentDatesUsed
+	return existingRents, nil
 }
 
-func (s *SheetsClient) isRentDatesAvailable(r *models.Rent, existingRentDates [][]interface{}) bool {
-	for _, dates := range existingRentDates {
-		dateBegin, err := time.Parse(dateLayout, dates[0].(string))
-		if err != nil {
-			log.Println("failed to parse dateBegin", err.Error())
-			return false
-		}
-
-		dateEnd, err := time.Parse(dateLayout, dates[1].(string))
-		if err != nil {
-			log.Println("failed to parse dateEnd", err.Error())
-			return false
-		}
-
-		if r.DateBegin.Equal(dateBegin) || (r.DateBegin.After(dateBegin) && r.DateBegin.Before(dateEnd)) {
-			log.Println("begin date is at an used date range")
-			return false
-		}
-
-		if (r.DateEnd.After(dateBegin) && r.DateEnd.Before(dateEnd)) || r.DateEnd.Equal(dateEnd) {
-			log.Println("end date is at an used date range")
-			return false
-		}
+func (s *SheetsClient) GetPayedCondos(apartment models.Apartment) ([]*models.Condo, error) {
+	payedCondosData, err := s.readData(apartment, readCondosCells)
+	if err != nil {
+		return nil, err
 	}
 
-	return true
+	existingCondos := make([]*models.Condo, 0)
+	for _, condo := range payedCondosData {
+		date, err := time.Parse(dateLayout, condo[0].(string))
+		if err != nil {
+			log.Println("failed to parse date of condo bill", err.Error(), condo)
+			return nil, err
+		}
+
+		value, err := strconv.ParseFloat(condo[1].(string), 32)
+		if err != nil {
+			log.Println("failed to parse value of condo", err.Error(), condo)
+		}
+
+		existingCondos = append(existingCondos, &models.Condo{
+			Value:     value,
+			Date:      date,
+			Apartment: apartment,
+		})
+	}
+
+	return existingCondos, nil
+}
+
+func (s *SheetsClient) GetPayedBills(apartment models.Apartment) ([]*models.EnergyBill, error) {
+	payedBillsData, err := s.readData(apartment, readBillCells)
+	if err != nil {
+		return nil, err
+	}
+
+	existingBills := make([]*models.EnergyBill, 0)
+	for _, bill := range payedBillsData {
+		date, err := time.Parse(dateLayout, bill[0].(string))
+		if err != nil {
+			log.Println("failed to parse date of bill", err.Error(), bill)
+			return nil, err
+		}
+
+		value, err := strconv.ParseFloat(bill[1].(string), 32)
+		if err != nil {
+			log.Println("failed to parse value of bill", err.Error(), bill)
+		}
+
+		existingBills = append(existingBills, &models.EnergyBill{
+			Value:     value,
+			Date:      date,
+			Apartment: apartment,
+		})
+	}
+
+	return existingBills, nil
+}
+
+func (s *SheetsClient) GetPayedCleanings(apartment models.Apartment) ([]*models.Cleaning, error) {
+	payedCleaningsData, err := s.readData(apartment, readCleaningCells)
+	if err != nil {
+		return nil, err
+	}
+
+	existingCleanings := make([]*models.Cleaning, 0)
+	for _, cleaning := range payedCleaningsData {
+		date, err := time.Parse(dateLayout, cleaning[0].(string))
+		if err != nil {
+			log.Println("failed to parse date of cleaning", err.Error(), cleaning)
+			return nil, err
+		}
+
+		value, err := strconv.ParseFloat(cleaning[1].(string), 32)
+		if err != nil {
+			log.Println("failed to parse value of cleaning", err.Error(), cleaning)
+		}
+
+		existingCleanings = append(existingCleanings, &models.Cleaning{
+			Value:     value,
+			Date:      date,
+			Cleaner:   cleaning[2].(string),
+			Apartment: apartment,
+		})
+	}
+
+	return existingCleanings, nil
 }
 
 // GetAvailableApartments query the existing sheets and return its titles in an array
