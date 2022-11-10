@@ -87,6 +87,10 @@ func (s *store) AddRent(r *models.Rent) error {
 		return errors.ErrRentDatesUsed
 	}
 
+	if r.DateBegin.After(r.DateEnd) || r.DateBegin.Equal(r.DateEnd) {
+		return errors.ErrRentReversedDates
+	}
+
 	return s.client.AddRent(r)
 }
 
