@@ -129,6 +129,21 @@ func (s *SheetsClient) AddRent(r *models.Rent) error {
 	})
 }
 
+// GetAvailableApartments query the existing sheets and return its titles in an array
+func (s *SheetsClient) GetAvailableApartments() ([]string, error) {
+	sheetData, err := s.Spreadsheets.Get(s.sheetsId).Do()
+	if err != nil {
+		return nil, err
+	}
+
+	var apartmentNames []string
+	for _, sheet := range sheetData.Sheets {
+		apartmentNames = append(apartmentNames, sheet.Properties.Title)
+	}
+
+	return apartmentNames, nil
+}
+
 func (s *SheetsClient) appendData(apartment models.Apartment, appendRange string, data [][]interface{}) error {
 	resp, err := s.Spreadsheets.Values.Append(s.sheetsId, appendRange, &sheets.ValueRange{
 		Range:  appendRange,

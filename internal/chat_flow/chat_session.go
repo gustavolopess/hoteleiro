@@ -6,7 +6,7 @@ import (
 )
 
 type ChatSession interface {
-	Next(string) string
+	Next(string) (string, interface{})
 }
 
 type chatSession[T models.Models] struct {
@@ -21,6 +21,6 @@ func NewChatSession[T models.Models](chatId int64, store storage.Store) ChatSess
 	}
 }
 
-func (s *chatSession[T]) Next(answer string) string {
+func (s *chatSession[T]) Next(answer string) (string, interface{}) {
 	return s.chatFlow.Next(answer)
 }

@@ -2,15 +2,18 @@ package chat_flow
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"time"
+
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
 	"github.com/gustavolopess/hoteleiro/internal/models"
 	"github.com/gustavolopess/hoteleiro/internal/storage"
 )
 
 type Flow[T models.Models] interface {
-	Next(string) string
+	Next(string) (string, interface{})
 }
 
 type Step int64
@@ -43,11 +46,12 @@ const (
 )
 
 type flow[T models.Models] struct {
-	store          storage.Store
-	step           Step
-	askedApartment bool
-	apartmentName  string
-	value          any
+	store               storage.Store
+	step                Step
+	askedApartment      bool
+	apartmentName       string
+	availableApartments []string
+	value               any
 }
 
 func NewFlow[T models.Models](store storage.Store) Flow[T] {
@@ -72,28 +76,74 @@ func NewFlow[T models.Models](store storage.Store) Flow[T] {
 	return f
 }
 
-func (f *flow[T]) Next(answer string) string {
+func (f *flow[T]) isApartmentValid(apartment string) bool {
+	for _, apt := range f.availableApartments {
+		if apt == apartment {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *flow[T]) assembleKeyboardMenuWithApartments() tgbotapi.InlineKeyboardMarkup {
+	var currRow []tgbotapi.InlineKeyboardButton
+
+	keyboard := tgbotapi.NewInlineKeyboardMarkup()
+	for i, apt := range f.availableApartments {
+		if i > 0 && i%3 == 0 {
+			keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, currRow)
+			currRow = []tgbotapi.InlineKeyboardButton{}
+		} else {
+			currRow = append(currRow, tgbotapi.NewInlineKeyboardButtonData(apt, apt))
+		}
+	}
+	if len(currRow) > 0 {
+		keyboard.InlineKeyboard = append(keyboard.InlineKeyboard, currRow)
+	}
+
+	return keyboard
+}
+
+func (f *flow[T]) Next(answer string) (string, interface{}) {
+	replyText, markup := f.next(answer)
+	if len(replyText) > 0 && len(f.apartmentName) > 0 {
+		replyText = fmt.Sprintf("[%s] %s", f.apartmentName, replyText)
+	}
+	return replyText, markup
+}
+
+func (f *flow[T]) next(answer string) (string, interface{}) {
 	if !f.askedApartment {
 		f.askedApartment = true
-		return "De qual imóvel estamos falando?"
+		availableApartments, err := f.store.GetAvailableApartments()
+		if err != nil {
+			f.step = stepEnd
+			log.Printf("error while getting available apartments: %v", err.Error())
+			return "Ocorreu um erro inesperado, tenete novamente :(", nil
+		}
+		f.availableApartments = availableApartments
+		return "Selecione o apartamento", f.assembleKeyboardMenuWithApartments()
 	}
 
 	if f.apartmentName == "" {
+		if !f.isApartmentValid(answer) {
+			return "Imóvel nao existe. De qual imóvel estamos falando?", nil
+		}
 		f.apartmentName = answer
 	}
 
 	switch f.step {
 	case stepEnd:
-		return ""
+		return "", nil
 
 	// Energy bill flow
 	case stepBeginEnergyBill:
 		f.step = stepGetValueEnergyBill
-		return "Qual o valor da conta de energia?"
+		return "Qual o valor da conta de energia?", nil
 	case stepGetValueEnergyBill:
 		value, err := parsePriceFromStr(answer)
 		if err != nil {
-			return err.Error()
+			return err.Error(), nil
 		}
 		if f.value == nil {
 			f.value = &models.EnergyBill{
@@ -102,19 +152,19 @@ func (f *flow[T]) Next(answer string) string {
 		}
 		f.value.(*models.EnergyBill).Value = value
 		f.step = stepGetDateEnergyBill
-		return "Informe o mês e ano da conta de energia. Escreva no formato mm/aaaa"
+		return "Informe o mês e ano da conta de energia. Escreva no formato mm/aaaa", nil
 	case stepGetDateEnergyBill:
 		t, err := parseDateFromMonthAndYear(answer)
 		if err != nil {
-			return err.Error()
+			return err.Error(), nil
 		}
 		f.value.(*models.EnergyBill).Date = t
 		f.step = stepEnd
 		err = f.store.AddBill(f.value.(*models.EnergyBill))
 		if err != nil {
-			return fmt.Sprintf("Falha ao registrar conta de energia %v - %v", f.value.(*models.EnergyBill).ToString(), err.Error())
+			return fmt.Sprintf("Falha ao registrar conta de energia %v - %v", f.value.(*models.EnergyBill).ToString(), err.Error()), nil
 		}
-		return fmt.Sprintf("Conta de energia adicionada - %v", f.value.(*models.EnergyBill).ToString())
+		return fmt.Sprintf("Conta de energia adicionada - %v", f.value.(*models.EnergyBill).ToString()), nil
 
 	// Rent flow
 	case stepBeginRent:
@@ -124,39 +174,39 @@ func (f *flow[T]) Next(answer string) string {
 			}
 		}
 		f.step = stepGetValueRent
-		return "Qual o valor do aluguel?"
+		return "Qual o valor do aluguel?", nil
 	case stepGetValueRent:
 		value, err := parsePriceFromStr(answer)
 		if err != nil {
-			return err.Error()
+			return err.Error(), nil
 		}
 		f.value.(*models.Rent).Value = value
 		f.step = stepGetDateBeginRent
-		return "Qual a data de início da locação? informe a data no formato dd/mm/aaaa"
+		return "Qual a data de início da locação? informe a data no formato dd/mm/aaaa", nil
 	case stepGetDateBeginRent:
 		t, err := parseDateFromFullDate(answer)
 		if err != nil {
-			return err.Error()
+			return err.Error(), nil
 		}
 		f.value.(*models.Rent).DateBegin = t
 		f.step = stepGetDateEndRent
-		return "Qual a data final da locação? informe a data no formato dd/mm/aaaa"
+		return "Qual a data final da locação? informe a data no formato dd/mm/aaaa", nil
 	case stepGetDateEndRent:
 		t, err := parseDateFromFullDate(answer)
 		if err != nil {
-			return err.Error()
+			return err.Error(), nil
 		}
 		f.value.(*models.Rent).DateEnd = t
 		f.step = stepGetRenter
-		return "Qual o nome do inquilino?"
+		return "Qual o nome do inquilino?", nil
 	case stepGetRenter:
 		f.value.(*models.Rent).Renter = answer
 		err := f.store.AddRent(f.value.(*models.Rent))
 		if err != nil {
-			return fmt.Sprintf("Falha ao adicionar o aluguel %v - %v", f.value.(*models.Rent).ToString(), err.Error())
+			return fmt.Sprintf("Falha ao adicionar o aluguel %v - %v", f.value.(*models.Rent).ToString(), err.Error()), nil
 		}
 		f.step = stepEnd
-		return fmt.Sprintf("Aluguel adicionado! %v", f.value.(*models.Rent).ToString())
+		return fmt.Sprintf("Aluguel adicionado! %v", f.value.(*models.Rent).ToString()), nil
 
 	// Cleaning flow
 	case stepBeginCleaning:
@@ -166,70 +216,70 @@ func (f *flow[T]) Next(answer string) string {
 			},
 		}
 		f.step = stepGetValueCleaning
-		return "Qual o valor pago na faxina?"
+		return "Qual o valor pago na faxina?", nil
 	case stepGetValueCleaning:
 		value, err := parsePriceFromStr(answer)
 		if err != nil {
-			return err.Error()
+			return err.Error(), nil
 		}
 		f.step = stepGetDateCleaning
 		f.value.(*models.Cleaning).Value = value
-		return "Em qual data a faxina foi realizada? informe uma data no formato dd/mm/aaaa"
+		return "Em qual data a faxina foi realizada? informe uma data no formato dd/mm/aaaa", nil
 	case stepGetDateCleaning:
 		t, err := parseDateFromFullDate(answer)
 		if err != nil {
-			return err.Error()
+			return err.Error(), nil
 		}
 		f.value.(*models.Cleaning).Date = t
 		f.step = stepGetCleaner
-		return "Quem foi o faxineiro(a)?"
+		return "Quem foi o faxineiro(a)?", nil
 	case stepGetCleaner:
 		f.value.(*models.Cleaning).Cleaner = answer
 		f.store.AddCleaning(f.value.(*models.Cleaning))
 		f.step = stepEnd
-		return fmt.Sprintf("Faxina registrada: %v", f.value.(*models.Cleaning).ToString())
+		return fmt.Sprintf("Faxina registrada: %v", f.value.(*models.Cleaning).ToString()), nil
 
 	// Condo flow
 	case stepBeginCondo:
 		f.step = stepGetValueCondo
-		return "Qual o valor do condomínio?"
+		return "Qual o valor do condomínio?", nil
 	case stepGetValueCondo:
 		value, err := parsePriceFromStr(answer)
 		if err != nil {
-			return err.Error()
+			return err.Error(), nil
 		}
 		f.step = stepGetDateCondo
 		f.value = &models.Condo{
 			Value: value,
 		}
-		return "Qual o mês e ano desta taxa de condomínio? informe uma data no formato mm/aaaa"
+		return "Qual o mês e ano desta taxa de condomínio? informe uma data no formato mm/aaaa", nil
 	case stepGetDateCondo:
 		t, err := parseDateFromMonthAndYear(answer)
 		if err != nil {
-			return err.Error()
+			return err.Error(), nil
 		}
 		f.value.(*models.Condo).Date = t
 		_ = f.store.AddCondo(f.value.(*models.Condo))
 		f.step = stepEnd
-		return fmt.Sprintf("Taxa de condomínio registrada: %v", f.value.(*models.Condo).ToString())
+		return fmt.Sprintf("Taxa de condomínio registrada: %v", f.value.(*models.Condo).ToString()), nil
 
 	// Apartment flow
 	case stepBeginApartment:
 		f.step = stepGetNameApartment
-		return "Qual o nome do imóvel?"
+		return "Qual o nome do imóvel?", nil
 	case stepGetNameApartment:
 		f.step = stepGetAddressApartment
 		f.value = &models.Apartment{
 			Name: answer,
 		}
-		return "Qual o endereço do imóvel?"
+		return "Qual o endereço do imóvel?", nil
 	case stepGetAddressApartment:
 		f.value.(*models.Apartment).Address = answer
 		_ = f.store.AddApartment(f.value.(*models.Apartment))
 		f.step = stepEnd
 	}
 
-	return ""
+	return "", nil
 }
 
 func parseDateFromMonthAndYear(dateStr string) (time.Time, error) {

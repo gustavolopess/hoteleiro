@@ -65,32 +65,36 @@ func main() {
 	updates := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		if update.Message != nil { // If we got a message
-			msg := tgbotapi.NewMessage(update.Message.Chat.ID, update.Message.Text)
-			var replyText string
+		var msg tgbotapi.MessageConfig
+		isMessage := update.Message != nil
+		isCallback := update.CallbackQuery != nil
+		var msgText string
+		var chatId int64
+		if isMessage { // If we got a message
+			chatId, msgText = update.Message.Chat.ID, update.Message.Text
+		} else if isCallback {
+			chatId, msgText = update.CallbackQuery.Message.Chat.ID, update.CallbackQuery.Data
+		}
 
-			if update.Message.IsCommand() && update.Message.Command() == "start" {
-				msg.ReplyMarkup = numericKeyboard
-			} else if isMessageAMenuOption(update.Message.Text) {
-				replyText = initChatSession(update.Message.Chat.ID, update.Message.Text, store)
-			} else {
-				if _, ok := chatSessions[update.Message.Chat.ID]; ok {
-					replyText = chatSessions[update.Message.Chat.ID].Next(update.Message.Text)
-				}
-			}
+		msg = tgbotapi.NewMessage(chatId, msgText)
 
-			if len(replyText) > 0 {
-				msg.Text = replyText
+		if isMessage && update.Message.IsCommand() && update.Message.Command() == "start" {
+			msg.ReplyMarkup = numericKeyboard
+		} else if isMessageAMenuOption(msgText) {
+			msg.Text, msg.ReplyMarkup = initChatSession(chatId, msgText, store)
+		} else {
+			if _, ok := chatSessions[chatId]; ok {
+				msg.Text, msg.ReplyMarkup = chatSessions[chatId].Next(msgText)
 			}
-			if _, err := bot.Send(msg); err != nil {
-				log.Panic(err)
-			}
+		}
 
+		if _, err := bot.Send(msg); err != nil {
+			log.Panic(err)
 		}
 	}
 }
 
-func initChatSession(chatId int64, msgText string, store storage.Store) string {
+func initChatSession(chatId int64, msgText string, store storage.Store) (string, interface{}) {
 	var chatSession chat_flow.ChatSession
 
 	switch MenuOption(msgText) {
@@ -111,5 +115,5 @@ func initChatSession(chatId int64, msgText string, store storage.Store) string {
 		return chatSession.Next(msgText)
 	}
 
-	return ""
+	return "", nil
 }

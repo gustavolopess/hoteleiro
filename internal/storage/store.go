@@ -16,6 +16,7 @@ type Store interface {
 	AddApartment(a *models.Apartment) error
 	AddBill(e *models.EnergyBill) error
 	AddRent(r *models.Rent) error
+	GetAvailableApartments() ([]string, error)
 }
 
 type rentRegistry struct {
@@ -98,4 +99,8 @@ func (s *store) AddRent(r *models.Rent) error {
 
 	s.rents = rentsCopy
 	return nil
+}
+
+func (s *store) GetAvailableApartments() ([]string, error) {
+	return s.client.GetAvailableApartments()
 }
