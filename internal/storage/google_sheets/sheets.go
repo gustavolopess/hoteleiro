@@ -18,16 +18,20 @@ import (
 )
 
 const rentCell = "A3"
-const rentDatesCells = "A3:D"
+const rentDatesCells = "A3:E"
+
+const billCell = "F3"
+const readBillCells = "F3:H"
+
 const condoCell = "I3"
-const readCondosCells = "I3:J"
+const readCondosCells = "I3:K"
+
 const cleaningCell = "L3"
 const readCleaningCells = "L3:N"
-const billCell = "F3"
-const readBillCells = "F3:G"
-const miscellaneousExpenseCell = "Q3"
-const amortizationCell = "V3"
-const financingInstallmentCell = "AA3"
+
+const miscellaneousExpenseCell = "O3"
+const amortizationCell = "S3"
+const financingInstallmentCell = "V3"
 
 const dateLayout = "02/01/2006"
 
@@ -115,14 +119,14 @@ func NewSheetsClient(ctx context.Context, credentialsFile, sheetsId string) *She
 // AddCleaning adds a new cleaning fee to the Cleaning table in the apartment sheet
 func (s *SheetsClient) AddCleaning(c *models.Cleaning) error {
 	return s.appendData(c.Apartment, cleaningCell, [][]interface{}{
-		{c.Date.Format(dateLayout), c.Value, c.Cleaner},
+		{c.Date.Format(dateLayout), c.Value, c.Payer},
 	})
 }
 
 // AddCondo adds a new condo payment to the Condo table in the apartment Sheet
 func (s *SheetsClient) AddCondo(c *models.Condo) error {
 	return s.appendData(c.Apartment, condoCell, [][]interface{}{
-		{c.Date.Format(dateLayout), c.Value},
+		{c.Date.Format(dateLayout), c.Value, c.Payer},
 	})
 }
 
@@ -134,20 +138,20 @@ func (s *SheetsClient) AddApartment(a *models.Apartment) error {
 // AddBill appends data to the Bill table in the apartment sheet
 func (s *SheetsClient) AddBill(e *models.EnergyBill) error {
 	return s.appendData(e.Apartment, billCell, [][]interface{}{
-		{e.Date.Format(dateLayout), e.Value},
+		{e.Date.Format(dateLayout), e.Value, e.Payer},
 	})
 }
 
 // AddRent appends data to the rent table in the apartment sheet
 func (s *SheetsClient) AddRent(r *models.Rent) error {
 	return s.appendData(r.Apartment, rentCell, [][]interface{}{
-		{r.DateBegin.Format(dateLayout), r.DateEnd.Format(dateLayout), r.Value, r.Renter},
+		{r.DateBegin.Format(dateLayout), r.DateEnd.Format(dateLayout), r.Value, r.Renter, r.Receiver},
 	})
 }
 
 func (s *SheetsClient) AddMiscellaneousExpense(m *models.MiscellaneousExpense) error {
 	return s.appendData(m.Apartment, miscellaneousExpenseCell, [][]interface{}{
-		{m.Date.Format(dateLayout), m.Value, m.Description},
+		{m.Date.Format(dateLayout), m.Value, m.Description, m.Payer},
 	})
 }
 
@@ -194,6 +198,7 @@ func (s *SheetsClient) GetExistingRents(apartment models.Apartment) ([]*models.R
 			DateEnd:   dateEnd,
 			Value:     value,
 			Renter:    rent[3].(string),
+			Receiver:  rent[4].(string),
 			Apartment: apartment,
 		})
 	}
@@ -223,6 +228,7 @@ func (s *SheetsClient) GetPayedCondos(apartment models.Apartment) ([]*models.Con
 		existingCondos = append(existingCondos, &models.Condo{
 			Value:     value,
 			Date:      date,
+			Payer:     condo[2].(string),
 			Apartment: apartment,
 		})
 	}
@@ -252,6 +258,7 @@ func (s *SheetsClient) GetPayedBills(apartment models.Apartment) ([]*models.Ener
 		existingBills = append(existingBills, &models.EnergyBill{
 			Value:     value,
 			Date:      date,
+			Payer:     bill[2].(string),
 			Apartment: apartment,
 		})
 	}
@@ -281,7 +288,7 @@ func (s *SheetsClient) GetPayedCleanings(apartment models.Apartment) ([]*models.
 		existingCleanings = append(existingCleanings, &models.Cleaning{
 			Value:     value,
 			Date:      date,
-			Cleaner:   cleaning[2].(string),
+			Payer:     cleaning[2].(string),
 			Apartment: apartment,
 		})
 	}

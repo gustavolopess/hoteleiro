@@ -6,12 +6,12 @@ import (
 )
 
 type Cleaning struct {
-	Date    time.Time
-	Value   float64
-	Cleaner string
+	Date  time.Time
+	Value float64
+	Payer string
 	Apartment
 }
 
 func (c *Cleaning) ToString() string {
-	return fmt.Sprintf("faxina do dia %v, feita por %v, ao custo de R$%v", c.Date.Format("02/01/2006"), c.Cleaner, c.Value)
+	return fmt.Sprintf("faxina do dia %v, paga por %v, ao custo de R$%v", c.Date.Format("02/01/2006"), c.Payer, c.Value)
 }
