@@ -24,6 +24,7 @@ type Store interface {
 	GetPayedCondos(apartment models.Apartment) ([]*models.Condo, error)
 	GetPayedBills(apartment models.Apartment) ([]*models.EnergyBill, error)
 	GetPayedCleanings(apartment models.Apartment) ([]*models.Cleaning, error)
+	GetMiscellaneousExpenses(apartment models.Apartment) ([]*models.MiscellaneousExpense, error)
 }
 
 type store struct {
@@ -74,7 +75,7 @@ func (s *store) AddBill(e *models.EnergyBill) error {
 	}
 
 	if isBillAlreadyPayed(e, payedBills) {
-		return errors.ErrCondoAlreadyPayed
+		return errors.ErrBillAlreadyPayed
 	}
 
 	return s.client.AddBill(e)
@@ -127,6 +128,10 @@ func (s *store) GetPayedBills(apartment models.Apartment) ([]*models.EnergyBill,
 
 func (s *store) GetPayedCleanings(apartment models.Apartment) ([]*models.Cleaning, error) {
 	return s.client.GetPayedCleanings(apartment)
+}
+
+func (s *store) GetMiscellaneousExpenses(apartment models.Apartment) ([]*models.MiscellaneousExpense, error) {
+	return s.client.GetMiscellaneousExpenses(apartment)
 }
 
 func isRentDatesAvailable(r *models.Rent, existingRents []*models.Rent) bool {

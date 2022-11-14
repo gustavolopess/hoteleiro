@@ -7,9 +7,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
+	"sort"
 	"time"
 
+	"github.com/gustavolopess/hoteleiro/internal/format"
 	"github.com/gustavolopess/hoteleiro/internal/models"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -30,6 +31,8 @@ const cleaningCell = "L3"
 const readCleaningCells = "L3:N"
 
 const miscellaneousExpenseCell = "O3"
+const readMiscellaneousExpenseCells = "O3:R"
+
 const amortizationCell = "S3"
 const financingInstallmentCell = "V3"
 
@@ -118,16 +121,42 @@ func NewSheetsClient(ctx context.Context, credentialsFile, sheetsId string) *She
 
 // AddCleaning adds a new cleaning fee to the Cleaning table in the apartment sheet
 func (s *SheetsClient) AddCleaning(c *models.Cleaning) error {
-	return s.appendData(c.Apartment, cleaningCell, [][]interface{}{
-		{c.Date.Format(dateLayout), c.Value, c.Payer},
+	existingCleanings, err := s.GetPayedCleanings(c.Apartment)
+	if err != nil {
+		return err
+	}
+
+	existingCleanings = append(existingCleanings, c)
+	sort.Slice(existingCleanings, func(i, j int) bool {
+		return existingCleanings[i].Date.Before(existingCleanings[j].Date)
 	})
+
+	var dataToWrite [][]interface{}
+	for _, cleaning := range existingCleanings {
+		dataToWrite = append(dataToWrite, []interface{}{cleaning.Date.Format(dateLayout), cleaning.Value, cleaning.Payer})
+	}
+
+	return s.upsertDataInRange(c.Apartment, cleaningCell, dataToWrite)
 }
 
 // AddCondo adds a new condo payment to the Condo table in the apartment Sheet
 func (s *SheetsClient) AddCondo(c *models.Condo) error {
-	return s.appendData(c.Apartment, condoCell, [][]interface{}{
-		{c.Date.Format(dateLayout), c.Value, c.Payer},
+	existingCondos, err := s.GetPayedCondos(c.Apartment)
+	if err != nil {
+		return err
+	}
+
+	existingCondos = append(existingCondos, c)
+	sort.Slice(existingCondos, func(i, j int) bool {
+		return existingCondos[i].Date.Before(existingCondos[j].Date)
 	})
+
+	var dataToWrite [][]interface{}
+	for _, condo := range existingCondos {
+		dataToWrite = append(dataToWrite, []interface{}{condo.Date.Format(dateLayout), condo.Value, condo.Payer})
+	}
+
+	return s.upsertDataInRange(c.Apartment, condoCell, dataToWrite)
 }
 
 // AddApartment adds a new sheet on spreadsheet, which represents an apartment
@@ -137,38 +166,111 @@ func (s *SheetsClient) AddApartment(a *models.Apartment) error {
 
 // AddBill appends data to the Bill table in the apartment sheet
 func (s *SheetsClient) AddBill(e *models.EnergyBill) error {
-	return s.appendData(e.Apartment, billCell, [][]interface{}{
-		{e.Date.Format(dateLayout), e.Value, e.Payer},
+	existingBills, err := s.GetPayedBills(e.Apartment)
+	if err != nil {
+		return err
+	}
+
+	existingBills = append(existingBills, e)
+	sort.Slice(existingBills, func(i, j int) bool {
+		return existingBills[i].Date.Before(existingBills[j].Date)
 	})
+
+	var dataToWrite [][]interface{}
+	for _, b := range existingBills {
+		dataToWrite = append(dataToWrite, []interface{}{b.Date.Format(dateLayout), b.Value, b.Payer})
+	}
+
+	return s.upsertDataInRange(e.Apartment, billCell, dataToWrite)
 }
 
 // AddRent appends data to the rent table in the apartment sheet
 func (s *SheetsClient) AddRent(r *models.Rent) error {
-	return s.appendData(r.Apartment, rentCell, [][]interface{}{
-		{r.DateBegin.Format(dateLayout), r.DateEnd.Format(dateLayout), r.Value, r.Renter, r.Receiver},
+	existingRents, err := s.GetExistingRents(r.Apartment)
+	if err != nil {
+		return err
+	}
+
+	existingRents = append(existingRents, r)
+	sort.Slice(existingRents, func(i, j int) bool {
+		return existingRents[i].DateBegin.Before(existingRents[j].DateBegin)
 	})
+
+	var dataToWrite [][]interface{}
+	for _, rent := range existingRents {
+		dataToWrite = append(dataToWrite, []interface{}{
+			rent.DateBegin.Format(dateLayout), rent.DateEnd.Format(dateLayout), rent.Value, rent.Renter, rent.Receiver,
+		})
+	}
+
+	return s.upsertDataInRange(r.Apartment, rentCell, dataToWrite)
 }
 
 func (s *SheetsClient) AddMiscellaneousExpense(m *models.MiscellaneousExpense) error {
-	return s.appendData(m.Apartment, miscellaneousExpenseCell, [][]interface{}{
-		{m.Date.Format(dateLayout), m.Value, m.Description, m.Payer},
+	existingExpenses, err := s.GetMiscellaneousExpenses(m.Apartment)
+	if err != nil {
+		return err
+	}
+
+	existingExpenses = append(existingExpenses, m)
+	sort.Slice(existingExpenses, func(i, j int) bool {
+		return existingExpenses[i].Date.Before(existingExpenses[j].Date)
 	})
+
+	var dataToWrite [][]interface{}
+	for _, e := range existingExpenses {
+		dataToWrite = append(dataToWrite, []interface{}{e.Date.Format(dateLayout), e.Value, e.Description, e.Payer})
+	}
+
+	return s.upsertDataInRange(m.Apartment, miscellaneousExpenseCell, dataToWrite)
+}
+
+func (s *SheetsClient) GetMiscellaneousExpenses(apartment models.Apartment) ([]*models.MiscellaneousExpense, error) {
+	data, err := s.readDataFromRange(apartment, readMiscellaneousExpenseCells)
+	if err != nil {
+		return nil, err
+	}
+
+	expenses := make([]*models.MiscellaneousExpense, 0)
+	for _, row := range data {
+		date, err := time.Parse(dateLayout, row[0].(string))
+		if err != nil {
+			log.Println("failed to parse date", err.Error(), row)
+			return nil, err
+		}
+
+		value, err := format.BrlToFloat64(row[1].(string))
+		if err != nil {
+			log.Println("failed to parse value of expense", row)
+			return nil, err
+		}
+
+		expenses = append(expenses, &models.MiscellaneousExpense{
+			Date:        date,
+			Value:       value,
+			Description: row[2].(string),
+			Payer:       row[3].(string),
+			Apartment:   apartment,
+		})
+	}
+
+	return expenses, nil
 }
 
 func (s *SheetsClient) AddAmortization(a *models.Amortization) error {
-	return s.appendData(a.Apartment, amortizationCell, [][]interface{}{
+	return s.upsertDataInRange(a.Apartment, amortizationCell, [][]interface{}{
 		{a.Date.Format(dateLayout), a.Value, a.Payer},
 	})
 }
 
 func (s *SheetsClient) AddFinancingInstallment(f *models.FinancingInstallment) error {
-	return s.appendData(f.Apartment, financingInstallmentCell, [][]interface{}{
+	return s.upsertDataInRange(f.Apartment, financingInstallmentCell, [][]interface{}{
 		{f.Date.Format(dateLayout), f.Value, f.Payer},
 	})
 }
 
 func (s *SheetsClient) GetExistingRents(apartment models.Apartment) ([]*models.Rent, error) {
-	existingRentsData, err := s.readData(apartment, rentDatesCells)
+	existingRentsData, err := s.readDataFromRange(apartment, rentDatesCells)
 	if err != nil {
 		return nil, err
 	}
@@ -188,9 +290,10 @@ func (s *SheetsClient) GetExistingRents(apartment models.Apartment) ([]*models.R
 			return nil, err
 		}
 
-		value, err := strconv.ParseFloat(rent[2].(string), 32)
+		value, err := format.BrlToFloat64(rent[2].(string))
 		if err != nil {
 			log.Println("failed to parse value of rent", rent)
+			return nil, err
 		}
 
 		existingRents = append(existingRents, &models.Rent{
@@ -207,7 +310,7 @@ func (s *SheetsClient) GetExistingRents(apartment models.Apartment) ([]*models.R
 }
 
 func (s *SheetsClient) GetPayedCondos(apartment models.Apartment) ([]*models.Condo, error) {
-	payedCondosData, err := s.readData(apartment, readCondosCells)
+	payedCondosData, err := s.readDataFromRange(apartment, readCondosCells)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +323,7 @@ func (s *SheetsClient) GetPayedCondos(apartment models.Apartment) ([]*models.Con
 			return nil, err
 		}
 
-		value, err := strconv.ParseFloat(condo[1].(string), 32)
+		value, err := format.BrlToFloat64(condo[1].(string))
 		if err != nil {
 			log.Println("failed to parse value of condo", err.Error(), condo)
 		}
@@ -237,7 +340,7 @@ func (s *SheetsClient) GetPayedCondos(apartment models.Apartment) ([]*models.Con
 }
 
 func (s *SheetsClient) GetPayedBills(apartment models.Apartment) ([]*models.EnergyBill, error) {
-	payedBillsData, err := s.readData(apartment, readBillCells)
+	payedBillsData, err := s.readDataFromRange(apartment, readBillCells)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +353,7 @@ func (s *SheetsClient) GetPayedBills(apartment models.Apartment) ([]*models.Ener
 			return nil, err
 		}
 
-		value, err := strconv.ParseFloat(bill[1].(string), 32)
+		value, err := format.BrlToFloat64(bill[1].(string))
 		if err != nil {
 			log.Println("failed to parse value of bill", err.Error(), bill)
 		}
@@ -267,7 +370,7 @@ func (s *SheetsClient) GetPayedBills(apartment models.Apartment) ([]*models.Ener
 }
 
 func (s *SheetsClient) GetPayedCleanings(apartment models.Apartment) ([]*models.Cleaning, error) {
-	payedCleaningsData, err := s.readData(apartment, readCleaningCells)
+	payedCleaningsData, err := s.readDataFromRange(apartment, readCleaningCells)
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +383,7 @@ func (s *SheetsClient) GetPayedCleanings(apartment models.Apartment) ([]*models.
 			return nil, err
 		}
 
-		value, err := strconv.ParseFloat(cleaning[1].(string), 32)
+		value, err := format.BrlToFloat64(cleaning[1].(string))
 		if err != nil {
 			log.Println("failed to parse value of cleaning", err.Error(), cleaning)
 		}
@@ -311,20 +414,20 @@ func (s *SheetsClient) GetAvailableApartments() ([]string, error) {
 	return apartmentNames, nil
 }
 
-func (s *SheetsClient) appendData(apartment models.Apartment, appendRange string, data [][]interface{}) error {
-	resp, err := s.Spreadsheets.Values.Append(s.sheetsId, appendRange, &sheets.ValueRange{
-		Range:  appendRange,
+func (s *SheetsClient) upsertDataInRange(apartment models.Apartment, upsertRange string, data [][]interface{}) error {
+	resp, err := s.Spreadsheets.Values.Update(s.sheetsId, upsertRange, &sheets.ValueRange{
+		Range:  upsertRange,
 		Values: data,
 	}).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
 		return err
 	}
 
-	log.Printf("values added to range %s", resp.Updates.UpdatedRange)
+	log.Printf("values added to range %s", resp.UpdatedRange)
 	return nil
 }
 
-func (s *SheetsClient) readData(apartment models.Apartment, readRange string) ([][]interface{}, error) {
+func (s *SheetsClient) readDataFromRange(apartment models.Apartment, readRange string) ([][]interface{}, error) {
 	cells, err := s.Spreadsheets.Values.Get(s.sheetsId, readRange).ValueRenderOption("FORMATTED_VALUE").Do()
 	if err != nil {
 		return nil, err
