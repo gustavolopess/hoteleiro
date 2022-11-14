@@ -20,9 +20,9 @@ func (f *flow[T]) condoFlow(answer string) (string, interface{}) {
 		f.value = &models.Condo{
 			Value: value,
 		}
-		return "Qual o mês e ano desta taxa de condomínio? informe uma data no formato mm/aaaa", nil
+		return "Em que data esta taxa de condomínio foi paga? informe uma data no formato dd/mm/aaaa", nil
 	case stepGetDateCondo:
-		t, err := parseDateFromMonthAndYear(answer)
+		t, err := parseDateFromFullDate(answer)
 		if err != nil {
 			return err.Error(), nil
 		}

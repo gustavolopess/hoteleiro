@@ -5,6 +5,15 @@ import (
 	"strings"
 )
 
+func StrPriceToFloat64(priceStr string) (float64, error) {
+	var value float64
+	value, err := strconv.ParseFloat(priceStr, 64)
+	if err != nil {
+		return value, err
+	}
+	return value, nil
+}
+
 func BrlToFloat64(brlValue string) (float64, error) {
 	brlValue = strings.TrimPrefix(brlValue, "R$")
 	brlValue = strings.ReplaceAll(brlValue, ".", "")

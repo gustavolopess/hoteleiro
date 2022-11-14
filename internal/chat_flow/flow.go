@@ -3,11 +3,11 @@ package chat_flow
 import (
 	"fmt"
 	"log"
-	"strconv"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 
+	"github.com/gustavolopess/hoteleiro/internal/format"
 	"github.com/gustavolopess/hoteleiro/internal/models"
 	"github.com/gustavolopess/hoteleiro/internal/storage"
 )
@@ -182,18 +182,8 @@ func (f *flow[T]) next(answer string) (string, interface{}) {
 	return f.currentFlow(answer)
 }
 
-func parseDateFromMonthAndYear(dateStr string) (time.Time, error) {
-	var t time.Time
-	t, err := time.Parse("01/2006", dateStr)
-	if err != nil {
-		return t, fmt.Errorf("%v nao é uma data válida, informe uma data no formato mm/aaaa", dateStr)
-	}
-	return t, nil
-}
-
 func parseDateFromFullDate(dateStr string) (time.Time, error) {
-	var t time.Time
-	t, err := time.Parse("02/01/2006", dateStr)
+	t, err := format.DDMMYYYYstringToTimeObj(dateStr)
 	if err != nil {
 		return t, fmt.Errorf("%v nao é uma data válida, informe uma data no formato dd/mm/aaaa", dateStr)
 	}
@@ -201,10 +191,9 @@ func parseDateFromFullDate(dateStr string) (time.Time, error) {
 }
 
 func parsePriceFromStr(priceStr string) (float64, error) {
-	var value float64
-	value, err := strconv.ParseFloat(priceStr, 64)
+	p, err := format.StrPriceToFloat64(priceStr)
 	if err != nil {
-		return value, fmt.Errorf("%v nao é um número válido, informe novamente o valor", priceStr)
+		return p, fmt.Errorf("%v nao é um número válido, informe novamente o valor", priceStr)
 	}
-	return value, nil
+	return p, nil
 }

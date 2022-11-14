@@ -23,9 +23,9 @@ func (f *flow[T]) energyBillFlow(answer string) (string, interface{}) {
 		}
 		f.value.(*models.EnergyBill).Value = value
 		f.step = stepGetDateEnergyBill
-		return "Informe o mês e ano da conta de energia. Escreva no formato mm/aaaa", nil
+		return "Em que data esta conta foi paga? Escreva no formato dd/mm/aaaa", nil
 	case stepGetDateEnergyBill:
-		t, err := parseDateFromMonthAndYear(answer)
+		t, err := parseDateFromFullDate(answer)
 		if err != nil {
 			return err.Error(), nil
 		}
