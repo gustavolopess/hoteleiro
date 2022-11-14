@@ -25,6 +25,8 @@ type Store interface {
 	GetPayedBills(apartment models.Apartment) ([]*models.EnergyBill, error)
 	GetPayedCleanings(apartment models.Apartment) ([]*models.Cleaning, error)
 	GetMiscellaneousExpenses(apartment models.Apartment) ([]*models.MiscellaneousExpense, error)
+	GetPayedFinancialInstallments(apartment models.Apartment) ([]*models.FinancingInstallment, error)
+	GetPayedAmortizations(apartment models.Apartment) ([]*models.Amortization, error)
 }
 
 type store struct {
@@ -132,6 +134,14 @@ func (s *store) GetPayedCleanings(apartment models.Apartment) ([]*models.Cleanin
 
 func (s *store) GetMiscellaneousExpenses(apartment models.Apartment) ([]*models.MiscellaneousExpense, error) {
 	return s.client.GetMiscellaneousExpenses(apartment)
+}
+
+func (s *store) GetPayedFinancialInstallments(apartment models.Apartment) ([]*models.FinancingInstallment, error) {
+	return s.client.GetPayedFinancialInstallments(apartment)
+}
+
+func (s *store) GetPayedAmortizations(apartment models.Apartment) ([]*models.Amortization, error) {
+	return s.client.GetPayedAmortizations(apartment)
 }
 
 func isRentDatesAvailable(r *models.Rent, existingRents []*models.Rent) bool {

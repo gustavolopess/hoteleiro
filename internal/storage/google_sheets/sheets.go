@@ -34,7 +34,10 @@ const miscellaneousExpenseCell = "O3"
 const readMiscellaneousExpenseCells = "O3:R"
 
 const amortizationCell = "S3"
+const readAmortizationCells = "S3:U"
+
 const financingInstallmentCell = "V3"
+const readFinancialInstallmentCells = "V3:X"
 
 const dateLayout = "02/01/2006"
 
@@ -258,15 +261,103 @@ func (s *SheetsClient) GetMiscellaneousExpenses(apartment models.Apartment) ([]*
 }
 
 func (s *SheetsClient) AddAmortization(a *models.Amortization) error {
-	return s.upsertDataInRange(a.Apartment, amortizationCell, [][]interface{}{
-		{a.Date.Format(dateLayout), a.Value, a.Payer},
+	payedAmortizations, err := s.GetPayedAmortizations(a.Apartment)
+	if err != nil {
+		return err
+	}
+
+	payedAmortizations = append(payedAmortizations, a)
+	sort.Slice(payedAmortizations, func(i, j int) bool {
+		return payedAmortizations[i].Date.Before(payedAmortizations[j].Date)
 	})
+
+	var dataToWrite [][]interface{}
+	for _, pa := range payedAmortizations {
+		dataToWrite = append(dataToWrite, []interface{}{pa.Date.Format(dateLayout), pa.Value, pa.Payer})
+	}
+
+	return s.upsertDataInRange(a.Apartment, amortizationCell, dataToWrite)
+}
+
+func (s *SheetsClient) GetPayedAmortizations(apartment models.Apartment) ([]*models.Amortization, error) {
+	payedAmortizationsData, err := s.readDataFromRange(apartment, readAmortizationCells)
+	if err != nil {
+		return nil, err
+	}
+
+	payedAmortizations := make([]*models.Amortization, 0)
+	for _, am := range payedAmortizationsData {
+		date, err := format.DDMMYYYYstringToTimeObj(am[0].(string))
+		if err != nil {
+			log.Println("failed to parse date", err.Error(), am)
+			return nil, err
+		}
+
+		value, err := format.BrlToFloat64(am[1].(string))
+		if err != nil {
+			log.Println("failed to parse value of financial installment", am)
+			return nil, err
+		}
+
+		payedAmortizations = append(payedAmortizations, &models.Amortization{
+			Date:      date,
+			Value:     value,
+			Payer:     am[2].(string),
+			Apartment: apartment,
+		})
+	}
+
+	return payedAmortizations, nil
 }
 
 func (s *SheetsClient) AddFinancingInstallment(f *models.FinancingInstallment) error {
-	return s.upsertDataInRange(f.Apartment, financingInstallmentCell, [][]interface{}{
-		{f.Date.Format(dateLayout), f.Value, f.Payer},
+	payedFinancialInstallments, err := s.GetPayedFinancialInstallments(f.Apartment)
+	if err != nil {
+		return err
+	}
+
+	payedFinancialInstallments = append(payedFinancialInstallments, f)
+	sort.Slice(payedFinancialInstallments, func(i, j int) bool {
+		return payedFinancialInstallments[i].Date.Before(payedFinancialInstallments[j].Date)
 	})
+
+	var dataToWrite [][]interface{}
+	for _, pfi := range payedFinancialInstallments {
+		dataToWrite = append(dataToWrite, []interface{}{pfi.Date.Format(dateLayout), pfi.Value, pfi.Payer})
+	}
+
+	return s.upsertDataInRange(f.Apartment, financingInstallmentCell, dataToWrite)
+}
+
+func (s *SheetsClient) GetPayedFinancialInstallments(apartment models.Apartment) ([]*models.FinancingInstallment, error) {
+	payedFinancialInstallmentsData, err := s.readDataFromRange(apartment, readFinancialInstallmentCells)
+	if err != nil {
+		return nil, err
+	}
+
+	payedFinancialInstallments := make([]*models.FinancingInstallment, 0)
+	for _, fi := range payedFinancialInstallmentsData {
+		date, err := format.DDMMYYYYstringToTimeObj(fi[0].(string))
+		if err != nil {
+			log.Println("failed to parse date", err.Error(), fi)
+			return nil, err
+		}
+
+		value, err := format.BrlToFloat64(fi[1].(string))
+		if err != nil {
+			log.Println("failed to parse value of financial installment", fi)
+			return nil, err
+		}
+
+		payedFinancialInstallments = append(payedFinancialInstallments, &models.FinancingInstallment{
+			Date:      date,
+			Value:     value,
+			Payer:     fi[2].(string),
+			Apartment: apartment,
+		})
+	}
+
+	return payedFinancialInstallments, nil
 }
 
 func (s *SheetsClient) GetExistingRents(apartment models.Apartment) ([]*models.Rent, error) {
