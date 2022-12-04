@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -8,6 +9,7 @@ import (
 	"github.com/gustavolopess/hoteleiro/internal/config"
 	"github.com/gustavolopess/hoteleiro/internal/models"
 	"github.com/gustavolopess/hoteleiro/internal/storage"
+	"github.com/gustavolopess/hoteleiro/internal/storage/s3_client"
 )
 
 type MenuOption string
@@ -58,15 +60,16 @@ var numericKeyboard = tgbotapi.NewReplyKeyboard(
 
 var chatSessions = make(map[int64]chat_flow.ChatSession)
 
-func main() {
-	bot, err := tgbotapi.NewBotAPI("5627586393:AAHHTc0W5Fjy-dC1CLejshG3ZbJK4va5--E")
+func triggerBot(ctx context.Context) {
+	bot, err := tgbotapi.NewBotAPI(config.TelegramBotToken)
 	if err != nil {
 		log.Panic(err)
 	}
 
-	cfg := config.LoadConfig()
+	s3Client := s3_client.GetS3Client()
 
-	store := storage.NewStore(cfg)
+	googleSheetsCreds := s3Client.GetGoogleSheetsCreds()
+	store := storage.NewGoogleSheetsStore(config.GoogleSheetId, googleSheetsCreds)
 
 	bot.Debug = true
 
@@ -135,4 +138,8 @@ func initChatSession(chatId int64, msgText string, store storage.Store) (string,
 	}
 
 	return "", nil
+}
+
+func main() {
+	triggerBot(context.Background())
 }

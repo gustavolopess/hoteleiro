@@ -10,6 +10,7 @@ require (
 
 require (
 	cloud.google.com/go/compute v1.10.0 // indirect
+	github.com/aws/aws-lambda-go v1.35.0
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect

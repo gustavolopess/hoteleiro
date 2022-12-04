@@ -1,38 +1,10 @@
 package config
 
-import (
-	"fmt"
-	"os"
-
-	"github.com/spf13/viper"
-)
-
-type Config struct {
-	DynamoDbUri string
-	AwsRegion   string
-}
-
 const (
-	dynamoDbUriConfigKey = "dynamodb_uri"
-	awsRegionConfigKey   = "aws_region"
+	AwsRegion                   = "us-east-1"
+	TelegramBotToken            = "5627586393:AAHHTc0W5Fjy-dC1CLejshG3ZbJK4va5--E"
+	GoogleSheetId               = "1lfWxf_Wj5IjKjPlu6V2k519Y_RVJh1UU2pDL9VuFxCo"
+	GoogleSheetsCredentialsInS3 = "credentials.json"
+	GoogleSheetsTokenInS3       = "token.json"
+	S3Bucket                    = "hoteleiro-bot"
 )
-
-func LoadConfig() *Config {
-	appEnv := os.Getenv("APP_ENV")
-	if appEnv == "" {
-		appEnv = "local"
-	}
-
-	viper.SetConfigName("config." + appEnv)
-	viper.SetConfigType("yml")
-	viper.AddConfigPath("/home/gustavolopess/workspace/golang/hoteleiro/config")
-	err := viper.ReadInConfig()
-	if err != nil {
-		panic(fmt.Errorf("fatal error config file: %w", err))
-	}
-
-	return &Config{
-		DynamoDbUri: viper.GetString(dynamoDbUriConfigKey),
-		AwsRegion:   viper.GetString(awsRegionConfigKey),
-	}
-}

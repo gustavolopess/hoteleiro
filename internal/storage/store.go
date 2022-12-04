@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/gustavolopess/hoteleiro/internal/config"
 	"github.com/gustavolopess/hoteleiro/internal/models"
 	"github.com/gustavolopess/hoteleiro/internal/storage/errors"
 	"github.com/gustavolopess/hoteleiro/internal/storage/google_sheets"
@@ -33,8 +32,8 @@ type store struct {
 	client Store
 }
 
-func NewStore(cfg *config.Config) Store {
-	sheetsClient := google_sheets.NewSheetsClient(context.Background(), "credentials.json", "1lfWxf_Wj5IjKjPlu6V2k519Y_RVJh1UU2pDL9VuFxCo")
+func NewGoogleSheetsStore(sheetId string, credentialsJson []byte) Store {
+	sheetsClient := google_sheets.NewSheetsClient(context.Background(), sheetId, credentialsJson)
 	return &store{
 		client: sheetsClient,
 	}
