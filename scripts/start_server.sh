@@ -1,3 +1,3 @@
 #!/bin/bash
 cd /app/
-./main
+go run cmd/main.go
