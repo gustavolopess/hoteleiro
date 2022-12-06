@@ -1,3 +1,3 @@
 #!/bin/bash
 cd /app/
-go run cmd/main.go
+nohup go run cmd/main.go &
