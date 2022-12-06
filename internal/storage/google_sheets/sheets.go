@@ -496,8 +496,9 @@ func (s *SheetsClient) GetAvailableApartments() ([]string, error) {
 }
 
 func (s *SheetsClient) upsertDataInRange(apartment models.Apartment, upsertRange string, data [][]interface{}) error {
-	resp, err := s.Spreadsheets.Values.Update(s.sheetsId, upsertRange, &sheets.ValueRange{
-		Range:  upsertRange,
+	a1Range := fmt.Sprintf("%s!%s", apartment.Name, upsertRange)
+	resp, err := s.Spreadsheets.Values.Update(s.sheetsId, a1Range, &sheets.ValueRange{
+		Range:  a1Range,
 		Values: data,
 	}).ValueInputOption("USER_ENTERED").Do()
 	if err != nil {
@@ -509,7 +510,8 @@ func (s *SheetsClient) upsertDataInRange(apartment models.Apartment, upsertRange
 }
 
 func (s *SheetsClient) readDataFromRange(apartment models.Apartment, readRange string) ([][]interface{}, error) {
-	cells, err := s.Spreadsheets.Values.Get(s.sheetsId, readRange).ValueRenderOption("FORMATTED_VALUE").Do()
+	a1Range := fmt.Sprintf("%s!%s", apartment.Name, readRange)
+	cells, err := s.Spreadsheets.Values.Get(s.sheetsId, a1Range).ValueRenderOption("FORMATTED_VALUE").Do()
 	if err != nil {
 		return nil, err
 	}
