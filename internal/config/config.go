@@ -6,5 +6,5 @@ const (
 	GoogleSheetId               = "1lfWxf_Wj5IjKjPlu6V2k519Y_RVJh1UU2pDL9VuFxCo"
 	GoogleSheetsCredentialsInS3 = "credentials.json"
 	GoogleSheetsTokenInS3       = "token.json"
-	S3Bucket                    = "hoteleiro-bot"
+	S3Bucket                    = "hoteleiro-bot2"
 )
