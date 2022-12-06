@@ -2,7 +2,9 @@ package s3_client
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -21,7 +23,8 @@ type S3Client struct {
 var client *S3Client
 
 func initS3Client() *S3Client {
-	creds := credentials.NewSharedCredentials(config.AwsCredsFile, config.AwsProfile)
+	credsFile := fmt.Sprintf("%s/.aws/%s", os.Getenv("HOME"), config.AwsCredsFile)
+	creds := credentials.NewSharedCredentials(credsFile, config.AwsProfile)
 
 	sess, _ := session.NewSession(&aws.Config{
 		Region:      aws.String(config.AwsRegion),
