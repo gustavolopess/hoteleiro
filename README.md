@@ -23,3 +23,4 @@ $ go run cmd/main.go
 ### Next steps
 - [ ] Inform the platform used to make the rent when adding a rent (AirBnb, Booking, Instagram, etc.)
 - [ ] Add an allow-list of authorized Telegram Users
+- [ ] Add capability to generate performance charts
