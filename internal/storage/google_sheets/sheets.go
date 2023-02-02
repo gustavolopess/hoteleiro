@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gustavolopess/hoteleiro/internal/format"
@@ -387,6 +388,10 @@ func (s *SheetsClient) GetExistingRents(apartment models.Apartment) ([]*models.R
 		})
 	}
 
+	sort.Slice(existingRents, func(a, b int) bool {
+		return existingRents[a].DateBegin.Before(existingRents[b].DateBegin)
+	})
+
 	return existingRents, nil
 }
 
@@ -489,7 +494,9 @@ func (s *SheetsClient) GetAvailableApartments() ([]string, error) {
 
 	var apartmentNames []string
 	for _, sheet := range sheetData.Sheets {
-		apartmentNames = append(apartmentNames, sheet.Properties.Title)
+		if !strings.HasPrefix(sheet.Properties.Title, "[") {
+			apartmentNames = append(apartmentNames, sheet.Properties.Title)
+		}
 	}
 
 	return apartmentNames, nil
