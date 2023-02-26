@@ -1,2 +1,7 @@
 credentials.json
 token.json
+terraform/.terraform
+.terraform.lock*
+*.tfstate*
+ecs-service.json
+ecs-task-definition.json
