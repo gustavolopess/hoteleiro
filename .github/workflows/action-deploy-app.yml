@@ -15,16 +15,6 @@ jobs:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY : ${{ secrets.AWS_SECRET_ACCESS_KEY }}
     steps:
-      - name: Get TF remote state
-        uses: dflook/terraform-remote-state@v1
-        id: remote-state
-        with:
-          backend_type: s3
-          backend_config: |
-            bucket=hoteleiro-bot2
-            key=terraform.tfstate
-            region=us-east-2
-
       - name: Checkout the files
         uses: actions/checkout@v2
 
