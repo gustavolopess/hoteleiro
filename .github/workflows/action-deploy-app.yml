@@ -12,6 +12,9 @@ jobs:
     name: Terraform provision EC2 instance
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout the files
+        uses: actions/checkout@v2
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
@@ -19,13 +22,16 @@ jobs:
           terraform_wrapper: false
 
       - name: Terraform init
+        working-directory: ./terraform
         run: terraform init
       
       - name: Terraform plan
+        working-directory: ./terraform
         run: |
           terraform plan -input=false -no-color -out tf.plan
 
       - name: Terraform apply
+        working-directory: ./terraform
         run: terraform apply -input=false tf.plan
 
   deploy:
