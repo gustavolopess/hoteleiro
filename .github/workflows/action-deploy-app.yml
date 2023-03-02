@@ -38,7 +38,7 @@ jobs:
       - name: Terraform apply
         working-directory: ./terraform
         id: apply
-        run: terraform apply -input=false tf.plan | grep public_dns >> $GITHUB_OUTPUT
+        run: terraform apply -input=false tf.plan | grep public_dns | sed 's/ //g' >> $GITHUB_OUTPUT
 
   deploy:
     needs: tf_provision
@@ -53,7 +53,7 @@ jobs:
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          REMOTE_HOST: ${{ jobs.tf_provision.outputs }}
+          REMOTE_HOST: ${{ needs.tf_provision.outputs.public_dns }}
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
           TARGET: /home/ubuntu/
 
