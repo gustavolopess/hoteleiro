@@ -38,7 +38,7 @@ jobs:
       - name: Terraform apply
         working-directory: ./terraform
         id: apply
-        run: terraform apply -input=false tf.plan >> $GITHUB_OUTPUT
+        run: terraform apply -input=false tf.plan | grep public_dns >> $GITHUB_OUTPUT
 
   deploy:
     needs: tf_provision
