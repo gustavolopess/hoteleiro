@@ -38,6 +38,7 @@ jobs:
         run: terraform apply -input=false tf.plan
 
   deploy:
+    needs: tf_provision
     name: Deploy to EC2
     runs-on: ubuntu-latest
 

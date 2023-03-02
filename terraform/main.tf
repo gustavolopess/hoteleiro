@@ -20,8 +20,9 @@ provider "aws" {
 }
 
 resource "aws_instance" "hotelier_server" {
-  ami           = "ami-0beaa649c482330f7"
+  ami           = "ami-00eeedc4036573771"
   instance_type = "t2.micro"
+  security_groups = [ "sg-03e07979956fdc4d6" ]
 
   tags = {
     Name   = "HotelierInstance"
