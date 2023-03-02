@@ -53,7 +53,7 @@ jobs:
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          REMOTE_HOST: ${{ needs.tf_provision.outputs.public_dns }}
+          REMOTE_HOST: ${{ jobs.tf_provision.outputs }}
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
           TARGET: /home/ubuntu/
 
