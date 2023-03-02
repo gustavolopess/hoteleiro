@@ -20,7 +20,7 @@ provider "aws" {
 }
 
 resource "aws_instance" "hotelier_server" {
-  ami           = "ami-00eeedc4036573771"
+  ami           = "ami-0b299847e139e681b"
   instance_type = "t2.micro"
   security_groups = [ "HotelierAllowSSH" ]
 
@@ -31,6 +31,6 @@ resource "aws_instance" "hotelier_server" {
   }
 }
 
-output "my-public-ip" {
-    value = aws_instance.hotelier_server.public_ip
+output "public-dns" {
+    value = aws_instance.hotelier_server.public_dns
 }
