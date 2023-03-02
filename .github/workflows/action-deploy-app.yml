@@ -11,6 +11,8 @@ jobs:
   tf_provision:
     name: Terraform provision EC2 instance
     runs-on: ubuntu-latest
+    outputs:
+      public_dns: ${{ steps.apply.outputs.public_dns }}
     env:
         AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY : ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -35,7 +37,8 @@ jobs:
 
       - name: Terraform apply
         working-directory: ./terraform
-        run: terraform apply -input=false tf.plan
+        id: apply
+        run: terraform apply -input=false tf.plan >> $GITHUB_OUTPUT
 
   deploy:
     needs: tf_provision
@@ -50,8 +53,8 @@ jobs:
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          REMOTE_HOST: ${{ secrets.HOST_DNS }}
-          REMOTE_USER: ${{ secrets.USERNAME }}
-          TARGET: ${{ secrets.TARGET_DIR }}
+          REMOTE_HOST: ${{ needs.tf_provision.outputs.public_dns }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          TARGET: /home/ubuntu/
 
   

@@ -31,6 +31,6 @@ resource "aws_instance" "hotelier_server" {
   }
 }
 
-output "public-dns" {
+output "public_dns" {
     value = aws_instance.hotelier_server.public_dns
 }
