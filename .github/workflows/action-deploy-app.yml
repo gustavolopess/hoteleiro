@@ -24,4 +24,14 @@ jobs:
           REMOTE_USER: ${{ secrets.REMOTE_USER }}
           TARGET: /home/ubuntu/
 
-  
+      - name: Stop old docker containers and start
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          key: ${{ secrets.EC2_SSH_KEY }}
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          script: |
+            cd /home/ubuntu/
+            docker build -t gustavolopes/hotelier .
+            docker stop $(docker ps -aq)
+            docker run -d --restart always gustavolopess/hotelier -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
