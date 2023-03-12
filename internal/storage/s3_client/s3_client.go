@@ -24,6 +24,9 @@ var client *S3Client
 func initS3Client() *S3Client {
 	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
 	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	if len(accessKey) == 0 || len(secretKey) == 0 {
+		log.Fatal("AWS credential keys are empty")
+	}
 	creds := credentials.NewStaticCredentials(accessKey, secretKey, "")
 
 	sess, _ := session.NewSession(&aws.Config{

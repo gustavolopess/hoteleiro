@@ -34,4 +34,4 @@ jobs:
             cd /home/ubuntu/
             docker build -t hotelier .
             docker stop $(docker ps -aq)
-            docker run -d --restart always hotelier -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            docker run -d --restart always hotelier --env AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} --env AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
