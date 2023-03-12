@@ -36,8 +36,7 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,FOO
           script: |
-            echo "I am $FOO"
             cd /home/ubuntu/
             docker build -t hotelier .
             docker stop $(docker ps -aq)
-            docker run -d --restart always hotelier --env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+            docker run --env AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID --env AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY -d --restart always hotelier
