@@ -2,7 +2,6 @@ package s3_client
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 
@@ -23,8 +22,9 @@ type S3Client struct {
 var client *S3Client
 
 func initS3Client() *S3Client {
-	credsFile := fmt.Sprintf("%s/.aws/%s", os.Getenv("HOME"), config.AwsCredsFile)
-	creds := credentials.NewSharedCredentials(credsFile, config.AwsProfile)
+	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	creds := credentials.NewStaticCredentials(accessKey, secretKey, "")
 
 	sess, _ := session.NewSession(&aws.Config{
 		Region:      aws.String(config.AwsRegion),
