@@ -29,12 +29,14 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY : ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          FOO: "FOO"
         with:
           key: ${{ secrets.EC2_SSH_KEY }}
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
-          envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY
+          envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,FOO
           script: |
+            echo "I am $FOO"
             cd /home/ubuntu/
             docker build -t hotelier .
             docker stop $(docker ps -aq)
